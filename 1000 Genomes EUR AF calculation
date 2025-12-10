@@ -1,0 +1,92 @@
+cat > EUR_AF_AFcalc.pbs << 'EOF'
+##########################################################################
+#
+#  Script:    EUR_AF_AFcalc.pbs
+#  Author:    Bade Uckac
+#  Created:   2025-12-10
+#
+##########################################################################
+
+#PBS -N EUR_AF_calc
+#PBS -r n
+#PBS -l mem=20GB,walltime=24:00:00,ncpus=2
+#PBS -m ae
+#PBS -M bade.uckac@qimrb.edu.au
+
+# --- Output and Error logs (BOTH into the same directory) ---
+#PBS -o /working/lab_miguelr/badeU/PGS_AGDS_Painsite/GWAS_Sumstats/1000G_EUR_AF
+#PBS -e /working/lab_miguelr/badeU/PGS_AGDS_Painsite/GWAS_Sumstats/1000G_EUR_AF
+
+module load bcftools
+module load htslib
+
+# Move to correct working directory
+cd /working/lab_miguelr/badeU/PGS_AGDS_Painsite/GWAS_Sumstats
+echo "Working directory: $(pwd)"
+
+##########################################################################
+# ABSOLUTE PATHS
+##########################################################################
+
+OUTDIR=/working/lab_miguelr/badeU/PGS_AGDS_Painsite/GWAS_Sumstats/1000G_EUR_AF
+EUR_SAMPLES=$OUTDIR/1000G_Phase3_EUR_samples.txt
+
+##########################################################################
+# STEP: Compute EUR AF for chromosomes 1–22
+##########################################################################
+
+for chr in {1..22}; do
+    echo "Processing chromosome ${chr}..."
+
+    legend=/reference/data/1000GP_Phase3/1000GP_Phase3/1000GP_Phase3_chr${chr}.legend.gz
+    hap=/reference/data/1000GP_Phase3/1000GP_Phase3/1000GP_Phase3_chr${chr}.hap.gz
+
+    # Extract variant info (SNP ID + ALT)
+    zcat $legend | awk 'NR>1{print $1,$3}' OFS='\t' \
+        > $OUTDIR/chr${chr}.variants.tmp
+
+    # Get EUR sample indices (absolute paths used)
+    eur_idx=$(awk 'NR>1{print $1}' $EUR_SAMPLES | \
+        awk 'NR==FNR{a[$1]=1; next} NR>1 && a[$1]{print NR-1}' \
+        /reference/data/1000GP_Phase3/1000GP_Phase3/1000GP_Phase3.sample - \
+        | paste -sd "," -)
+
+    # Calculate AF for EUR samples
+    zcat $hap | \
+        awk -v idx="$eur_idx" '
+        BEGIN{split(idx,cols,",")}
+        {
+            alt_count=0
+            total=0
+            for(i in cols){
+                c=cols[i]
+                alt_count += $c
+                total++
+            }
+            AF = alt_count / (2 * total)
+            print AF
+        }' > $OUTDIR/chr${chr}.AF.tmp
+
+    # Combine variant + AF
+    paste $OUTDIR/chr${chr}.variants.tmp \
+          $OUTDIR/chr${chr}.AF.tmp \
+          > $OUTDIR/chr${chr}.EUR_AF.txt
+
+    rm $OUTDIR/chr${chr}.variants.tmp $OUTDIR/chr${chr}.AF.tmp
+
+    echo "Chromosome ${chr} complete."
+done
+
+##########################################################################
+# STEP: Merge all output
+##########################################################################
+
+cat $OUTDIR/chr*.EUR_AF.txt \
+    > $OUTDIR/1000G_Phase3_EUR_AF_all.txt
+
+echo "Merged AF file created:"
+echo "$OUTDIR/1000G_Phase3_EUR_AF_all.txt"
+
+echo "Job completed on: $(date)"
+##########################################################################
+EOF
