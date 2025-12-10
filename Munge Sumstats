@@ -1,3 +1,5 @@
+
+#1 MUNGE sumstats 
 #!/bin/bash
 
 #PBS -N Munge_CP
@@ -21,3 +23,11 @@ python /software/ldsc/ldsc-20200724/munge_sumstats.py \
   --signed-sumstats BETA,0 \
   --out /working/lab_miguelr/badeU/PGS_AGDS_Painsite/GWAS_Sumstats/ChronicPain \
   --merge-alleles /working/lab_miguelr/badeU/Reference/w_hm3.noMHC.snplist
+
+#2 Calculate Genetic Correlation between two traits:
+
+ldsc.py \
+  --rg OSA.sumstats.gz,pgcMDD_EHR_munged.sumstats.gz \
+  --ref-ld-chr /reference/data/UKBB_500k/versions/lab_stuartma/LDSC_res/1000HGP/eur_w_ld_chr/ \
+  --w-ld-chr   /reference/data/UKBB_500k/versions/lab_stuartma/LDSC_res/1000HGP/eur_w_ld_chr/ \
+  --out OSA_MDD_rg
