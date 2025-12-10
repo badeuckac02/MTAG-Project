@@ -1,0 +1,19 @@
+#!/bin/bash
+
+dbsnp_dir="/reference/genepi/dbSNP_positions"
+out="/working/lab_miguelr/badeU/PGS_AGDS_Painsite/GWAS_Sumstats/dbsnp_full_map.tsv"
+
+echo -e "RSID\tCHR\tBP" > "$out"
+
+for f in ${dbsnp_dir}/chr*_dbSNP_rsnames_start_end_strand_alleles_plusstrand.gz; do
+    # extract chromosome from filename
+    chr=$(basename "$f" | sed -E 's/^chr([0-9XY]+)_.*$/\1/')
+    
+    echo "Processing chr$chr ..." >&2
+
+    zcat "$f" | \
+    awk -v C="$chr" '{print $1 "\t" C "\t" $2}' \
+    >> "$out"
+done
+
+echo "DONE → written to: $out"
